@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.gradleutils'
+}
+
+group = 'net.neoforged'
+base {
+    archivesName = 'vineflower-plugins'
+}
+gradleutils.version {
+    branches.suffixBranch()
+}
+version = gradleutils.version
+
+changelog {
+    from '0.1'
+    // For fine-grained changelog publication control
+    disableAutomaticPublicationRegistration()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.vineflower:vineflower:1.11.2'
+
+    testImplementation platform('org.junit:junit-bom:5.13.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// This is needed for the TestClass classes to test final parameter removal
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ["-parameters"]
+}
