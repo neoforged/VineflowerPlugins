@@ -1,7 +1,8 @@
 import net.neoforged.gradleutils.PomUtilsExtension
 
 plugins {
-    id 'java'
+    id 'signing'
+    id 'java-library'
     id 'maven-publish'
     id 'net.neoforged.gradleutils'
 }
@@ -16,8 +17,8 @@ gradleutils {
             suffixBranch()
         }
     }
-    setupCentralPublishing()
-    setupSigning(signAllPublications: true)
+    // setupCentralPublishing()
+    // setupSigning(signAllPublications: true)
 }
 version = gradleutils.version
 
