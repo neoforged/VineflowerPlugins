@@ -1,5 +1,8 @@
+import net.neoforged.gradleutils.PomUtilsExtension
+
 plugins {
     id 'java'
+    id 'maven-publish'
     id 'net.neoforged.gradleutils'
 }
 
@@ -7,8 +10,14 @@ group = 'net.neoforged'
 base {
     archivesName = 'vineflower-plugins'
 }
-gradleutils.version {
-    branches.suffixBranch()
+gradleutils {
+    version {
+        branches {
+            suffixBranch()
+        }
+    }
+    setupCentralPublishing()
+    setupSigning(signAllPublications: true)
 }
 version = gradleutils.version
 
@@ -22,12 +31,51 @@ repositories {
     mavenCentral()
 }
 
+java {
+    withSourcesJar()
+    withJavadocJar()
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.named('javadoc').configure {
+    options.addBooleanOption('Xdoclint:all,-missing', true)
+}
+
+tasks.withType(JavaCompile).configureEach() {
+    options.encoding = "UTF-8"
+}
+
+AdhocComponentWithVariants javaComponent = (AdhocComponentWithVariants) project.components.getByName("java")
+
+configurations {
+    changelog {
+        canBeResolved = false
+        canBeConsumed = true
+        attributes {
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.DOCUMENTATION))
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, "changelog"))
+        }
+        javaComponent.addVariantsFromConfiguration(it) {}
+    }
+}
+
 dependencies {
     implementation 'org.vineflower:vineflower:1.11.2'
 
     testImplementation platform('org.junit:junit-bom:5.13.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+artifacts {
+    // Only publish a changelog for releases
+    changelog(createChangelog.outputFile) {
+        builtBy(createChangelog)
+        setClassifier("changelog")
+        setExtension("txt")
+    }
 }
 
 test {
@@ -37,4 +85,24 @@ test {
 // This is needed for the TestClass classes to test final parameter removal
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ["-parameters"]
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'vineflower-plugins'
+            from components.java
+            pom {
+                name = 'VineflowerPlugins'
+                description = 'Plugins for the VineFlower decompiler, allowing removal of final on method parameters'
+                pomUtils.githubRepo(it, 'VineflowerPlugins')
+                pomUtils.neoForgedDeveloper(it)
+                pomUtils.license(it, PomUtilsExtension.License.LGPL_v2)
+            }
+        }
+    }
+
+    repositories {
+        maven gradleutils.publishingMaven
+    }
 }
