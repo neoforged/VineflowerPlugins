@@ -48,8 +48,10 @@ tasks.withType(JavaCompile).configureEach() {
     options.encoding = "UTF-8"
 }
 
-AdhocComponentWithVariants javaComponent = (AdhocComponentWithVariants) project.components.getByName("java")
+final javaComponent = (AdhocComponentWithVariants) project.components.getByName("java")
 
+def vineflowerBundleClasspath
+def vineflowerBundleElements
 configurations {
     changelog {
         canBeResolved = false
@@ -60,22 +62,86 @@ configurations {
         }
         javaComponent.addVariantsFromConfiguration(it) {}
     }
+    final vineflowerBundle = dependencyScope('vineflowerBundle')
+    vineflowerBundleClasspath = resolvable('vineflowerBundleClasspath') {
+        extendsFrom(vineflowerBundle.get())
+    }
 }
 
 dependencies {
     implementation 'org.vineflower:vineflower:1.11.2'
+
+    vineflowerBundle 'org.vineflower:vineflower:1.11.2'
 
     testImplementation platform('org.junit:junit-bom:5.13.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+abstract class MergeJars extends DefaultTask {
+    @Classpath
+    abstract ConfigurableFileCollection getInput();
+    @OutputFile
+    abstract RegularFileProperty getOutput();
+    @TaskAction
+    def merge() {
+        // Find the right manifest
+        final m = new java.util.jar.Manifest()
+        m.mainAttributes[java.util.jar.Attributes.Name.MANIFEST_VERSION] = '1.0'
+        input.forEach {
+            it.newInputStream().withCloseable {
+                new java.util.jar.JarInputStream(it).withCloseable { jin ->
+                    if (jin.manifest) {
+                        m.mainAttributes.putAll(jin.manifest.mainAttributes)
+                        m.entries.putAll(jin.manifest.entries)
+                    }
+                }
+            }
+        }
+
+        final dirsCreated = new java.util.HashSet<>()
+        output.asFile.get().newOutputStream().withCloseable { out -> {
+            new java.util.jar.JarOutputStream(out, m).withCloseable { jout ->
+                input.forEach {
+                    new java.util.jar.JarFile(it).withCloseable { jin ->
+                        jin.entries().each { entry ->
+                            if (entry.name == "META-INF/MANIFEST.MF") {
+                                return // Handled separately
+                            }
+                            if (entry.isDirectory()) {
+                                if (dirsCreated.add(entry.name)) {
+                                    jout.putNextEntry(new java.util.jar.JarEntry(entry.name))
+                                    jout.closeEntry()
+                                }
+                                return
+                            }
+
+                            jout.putNextEntry(new java.util.jar.JarEntry(entry.name))
+                            jin.getInputStream(entry).withCloseable { entryIn ->
+                                entryIn.transferTo(jout)
+                            }
+                            jout.closeEntry()
+                        }
+                    }
+                }
+            }
+        }}
+    }
+}
+
+final vineflowerBundleJar = tasks.register('vineflowerBundleJar', MergeJars.class) {
+    group = 'build'
+    input.from(vineflowerBundleClasspath)
+    input.from(tasks.named('jar'))
+    output = layout.buildDirectory.file('libs/vf-bundle.jar')
+}
+
 artifacts {
     // Only publish a changelog for releases
     changelog(createChangelog.outputFile) {
         builtBy(createChangelog)
-        setClassifier("changelog")
-        setExtension("txt")
+        setClassifier('changelog')
+        setExtension('txt')
     }
 }
 
@@ -93,6 +159,9 @@ publishing {
         mavenJava(MavenPublication) {
             artifactId = 'vineflower-plugins'
             from components.java
+            artifact(vineflowerBundleJar) {
+                classifier = 'vfbundle'
+            }
             pom {
                 name = 'VineflowerPlugins'
                 description = 'Plugins for the VineFlower decompiler, allowing removal of final on method parameters'
