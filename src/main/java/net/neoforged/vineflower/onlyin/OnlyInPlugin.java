@@ -40,7 +40,7 @@ public class OnlyInPlugin implements Plugin {
     }
 
     @Override
-    public void initialize() {
+    public void beforeDecompile() {
         manifest = loadManifest();
     }
 
@@ -121,31 +121,21 @@ public class OnlyInPlugin implements Plugin {
     }
 
     private static Manifest loadManifest() {
-        try {
-            var structContext = DecompilerContext.getStructContext();
-            var unitsField = structContext.getClass().getDeclaredField("units");
-            unitsField.setAccessible(true);
-            List<?> units = (List<?>) unitsField.get(structContext);
-            for (Object unitObj : units) {
-                if (!((ContextUnit) unitObj).isOwn()) {
-                    continue;
-                }
-                var sourceField = unitObj.getClass().getDeclaredField("source");
-                sourceField.setAccessible(true);
-                var source = (IContextSource) sourceField.get(unitObj);
-                for (IContextSource.Entry other : source.getEntries().others()) {
-                    if (other.path().equals("META-INF/MANIFEST.MF")) {
-                        DecompilerContext.getLogger().writeMessage("Loading Minecraft-Dist manifest data from " + source.getName(), IFernflowerLogger.Severity.WARN);
-                        try (var input = source.getInputStream(other)) {
-                            return new Manifest(input);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
+        var structContext = DecompilerContext.getStructContext();
+        for (ContextUnit unit : structContext.getUnits()) {
+            if (!unit.isOwn()) {
+                continue;
+            }
+            for (IContextSource.Entry other : unit.getOtherEntries()) {
+                if (other.path().equals("META-INF/MANIFEST.MF")) {
+                    DecompilerContext.getLogger().writeMessage("Loading Minecraft-Dist manifest data from " + unit.getName(), IFernflowerLogger.Severity.WARN);
+                    try (var input = unit.getStream(other)) {
+                        return new Manifest(input);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
                     }
                 }
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
         }
         return new Manifest();
     }
