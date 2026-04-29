@@ -1,10 +1,10 @@
 package net.neoforged.vineflower.onlyin;
 
-import org.jetbrains.java.decompiler.api.java.JavaPassLocation;
+import org.jetbrains.java.decompiler.api.java.ClassPassLocation;
 import org.jetbrains.java.decompiler.api.java.JavaPassRegistrar;
 import org.jetbrains.java.decompiler.api.plugin.Plugin;
 import org.jetbrains.java.decompiler.api.plugin.PluginOptions;
-import org.jetbrains.java.decompiler.api.plugin.pass.NamedPass;
+import org.jetbrains.java.decompiler.api.plugin.pass.ClassPass;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.extern.IContextSource;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
@@ -15,7 +15,6 @@ import org.jetbrains.java.decompiler.struct.StructClass;
 import org.jetbrains.java.decompiler.struct.attr.StructAnnotationAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
 import org.jetbrains.java.decompiler.struct.gen.FieldDescriptor;
-import org.jetbrains.java.decompiler.util.Key;
 import org.jetbrains.java.decompiler.util.Pair;
 
 import java.io.IOException;
@@ -41,23 +40,32 @@ public class OnlyInPlugin implements Plugin {
     }
 
     @Override
+    public void beforeDecompile() {
+        manifest = loadManifest();
+    }
+
+    @Override
+    public void close() {
+        manifest = null;
+    }
+
+    @Override
     public void registerJavaPasses(JavaPassRegistrar registrar) {
         // Passes run per method, so we need to track which we added the annotation to already.
-        registrar.register(JavaPassLocation.BEFORE_MAIN, new NamedPass(id(), context -> {
+        registrar.registerClassPass(ClassPassLocation.BEFORE_PROCESSING, node -> {
             if (!DecompilerContext.getOption(OnlyInOptions.ADD_ONLYIN)) {
                 return false;
             }
 
-            Manifest manifest = getOrLoadManifest();
-
-            StructClass parent = context.getEnclosingClass();
-            if (parent.qualifiedName.contains("$")) {
-                return true; // dont handle inner classes etc.
+            if (manifest == null) {
+                return false;
             }
 
-            var entryAttr = manifest.getEntries().get(parent.qualifiedName + ".class");
+            StructClass cl = node.classStruct;
+
+            var entryAttr = manifest.getEntries().get(cl.qualifiedName + ".class");
             if (entryAttr == null) {
-                return true; // No dist-specificity
+                return false; // No dist-specificity
             }
 
             var entryDist = entryAttr.getValue("Minecraft-Dist");
@@ -68,17 +76,17 @@ public class OnlyInPlugin implements Plugin {
                 } else if ("server".equals(entryDist)) {
                     annotation = ANNOTATION_SERVER;
                 } else {
-                    return true; // Unsupported dist.
+                    return false; // Unsupported dist.
                 }
 
                 // Only add the annotation if it's not already present.
-                var annotations = parent.getAttribute(StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_ANNOTATIONS);
+                var annotations = cl.getAttribute(StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_ANNOTATIONS);
                 if (annotations != null && annotations.getAnnotations().stream().anyMatch(a -> a.getClassName().equals(annotation.getClassName()))) {
-                    return true;
+                    return false;
                 }
                 if (annotations == null) {
                     annotations = new StructAnnotationAttribute();
-                    parent.getAttributes().put(StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_ANNOTATIONS.name, annotations);
+                    cl.getAttributes().put(StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_ANNOTATIONS, annotations);
                 }
                 if (annotations.getAnnotations() == null) {
                     annotations.setAnnotations(new ArrayList<>());
@@ -87,20 +95,7 @@ public class OnlyInPlugin implements Plugin {
             }
 
             return true;
-        }));
-    }
-
-    private Manifest getOrLoadManifest() {
-        Manifest manifest = this.manifest;
-        if (manifest == null) {
-            synchronized (this) {
-                manifest = this.manifest;
-                if (manifest == null) {
-                    manifest = this.manifest = loadManifest();
-                }
-            }
-        }
-        return manifest;
+        });
     }
 
     @Override
@@ -126,31 +121,21 @@ public class OnlyInPlugin implements Plugin {
     }
 
     private static Manifest loadManifest() {
-        try {
-            var structContext = DecompilerContext.getStructContext();
-            var unitsField = structContext.getClass().getDeclaredField("units");
-            unitsField.setAccessible(true);
-            List<?> units = (List<?>) unitsField.get(structContext);
-            for (Object unitObj : units) {
-                if (!((ContextUnit) unitObj).isOwn()) {
-                    continue;
-                }
-                var sourceField = unitObj.getClass().getDeclaredField("source");
-                sourceField.setAccessible(true);
-                var source = (IContextSource) sourceField.get(unitObj);
-                for (IContextSource.Entry other : source.getEntries().others()) {
-                    if (other.path().equals("META-INF/MANIFEST.MF")) {
-                        DecompilerContext.getLogger().writeMessage("Loading Minecraft-Dist manifest data from " + source.getName(), IFernflowerLogger.Severity.WARN);
-                        try (var input = source.getInputStream(other)) {
-                            return new Manifest(input);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
+        var structContext = DecompilerContext.getStructContext();
+        for (ContextUnit unit : structContext.getUnits()) {
+            if (!unit.isOwn()) {
+                continue;
+            }
+            for (IContextSource.Entry other : unit.getOtherEntries()) {
+                if (other.path().equals("META-INF/MANIFEST.MF")) {
+                    DecompilerContext.getLogger().writeMessage("Loading Minecraft-Dist manifest data from " + unit.getName(), IFernflowerLogger.Severity.WARN);
+                    try (var input = unit.getStream(other)) {
+                        return new Manifest(input);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
                     }
                 }
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
         }
         return new Manifest();
     }
