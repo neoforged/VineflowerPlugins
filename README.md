@@ -25,3 +25,13 @@ This Vineflower plugin will use that Manifest information to add `@OnlyIn` annot
 to client or server. These annotations are now purely for documentation purposes.
 
 This plugin is enabled by default, but can be disabled using the `-add-onlyin=0` command line option.
+
+## Add Nullable Annotation to Object#equals() Overrides
+
+This plugin adds `@Nullable` annotations to the parameter of `Object#equals()` overrides to satisfy null-safety checks
+by static analysis tools when the containing class or its containing package is null-marked.
+
+By default, this plugin will use the JSpecify `@Nullable` annotation, but this can be changed by passing the
+fully-qualified, slash-separated name of the annotation class to the `-nullable-equals-anno-type` command line option
+
+This plugin is enabled by default, but can be disabled using the `-nullable-equals=0` command line option.
