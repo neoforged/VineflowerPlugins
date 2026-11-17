@@ -1,13 +1,13 @@
 package net.neoforged.vineflower.equals;
 
-import net.neoforged.vineflower.testclasses.TestClass3;
-import net.neoforged.vineflower.testclasses.TestClass4;
-import net.neoforged.vineflower.testclasses.TestClass5;
+import net.neoforged.vineflower.testclasses.equals.TestClass3;
+import net.neoforged.vineflower.testclasses.equals.TestClass4;
+import net.neoforged.vineflower.testclasses.equals.param.TestClass5;
+import net.neoforged.vineflower.testclasses.equals.typeuse.TestClass6;
 import org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
@@ -20,11 +20,9 @@ class NullableEqualsTest {
 
     @Test
     void testWithoutPlugin() throws Exception {
-        decompileTestClass(TestClass3.class, "--nullable-equals=0");
-
-        var javaSource = Files.readString(tempDir.resolve("TestClass3.java"));
+        String javaSource = decompileTestClass(TestClass3.class, "--nullable-equals=0");
         assertEquals("""
-                package net.neoforged.vineflower.testclasses;
+                package net.neoforged.vineflower.testclasses.equals;
                 
                 public class TestClass3 {
                    @Override
@@ -45,11 +43,9 @@ class NullableEqualsTest {
 
     @Test
     void testWithPlugin() throws Exception {
-        decompileTestClass(TestClass3.class);
-
-        var javaSource = Files.readString(tempDir.resolve("TestClass3.java"));
+        String javaSource = decompileTestClass(TestClass3.class);
         assertEquals("""
-                package net.neoforged.vineflower.testclasses;
+                package net.neoforged.vineflower.testclasses.equals;
                 
                 import org.jspecify.annotations.Nullable;
                 
@@ -72,11 +68,9 @@ class NullableEqualsTest {
 
     @Test
     void testWithPluginExistingOtherAnnotation() throws Exception {
-        decompileTestClass(TestClass4.class);
-
-        var javaSource = Files.readString(tempDir.resolve("TestClass4.java"));
+        String javaSource = decompileTestClass(TestClass4.class);
         assertEquals("""
-                package net.neoforged.vineflower.testclasses;
+                package net.neoforged.vineflower.testclasses.equals;
                 
                 import org.jspecify.annotations.Nullable;
                 
@@ -90,12 +84,10 @@ class NullableEqualsTest {
     }
 
     @Test
-    void testWithPluginExistingNullableAnnotation() throws Exception {
-        decompileTestClass(TestClass5.class);
-
-        var javaSource = Files.readString(tempDir.resolve("TestClass5.java"));
+    void testWithPluginExistingParamNullableAnnotation() throws Exception {
+        String javaSource = decompileTestClass(TestClass5.class);
         assertEquals("""
-                package net.neoforged.vineflower.testclasses;
+                package net.neoforged.vineflower.testclasses.equals.param;
                 
                 public class TestClass5 {
                    @Override
@@ -106,7 +98,22 @@ class NullableEqualsTest {
                 """, javaSource);
     }
 
-    private void decompileTestClass(Class<?> clazz, String... extraOptions) throws URISyntaxException {
+    @Test
+    void testWithPluginExistingTypeUseNullableAnnotation() throws Exception {
+        String javaSource = decompileTestClass(TestClass6.class);
+        assertEquals("""
+                package net.neoforged.vineflower.testclasses.equals.typeuse;
+                
+                public class TestClass6 {
+                   @Override
+                   public boolean equals(@Nullable Object o) {
+                      return false;
+                   }
+                }
+                """, javaSource);
+    }
+
+    private String decompileTestClass(Class<?> clazz, String... extraOptions) throws Exception {
         var testClassPath = Path.of(clazz.getProtectionDomain().getCodeSource().getLocation().toURI());
         testClassPath = testClassPath.resolve(clazz.getName().replace('.', '/') + ".class");
 
@@ -118,5 +125,7 @@ class NullableEqualsTest {
                 )).toArray(String[]::new);
 
         ConsoleDecompiler.main(effectiveOptions);
+
+        return Files.readString(tempDir.resolve(clazz.getSimpleName() + ".java"));
     }
 }

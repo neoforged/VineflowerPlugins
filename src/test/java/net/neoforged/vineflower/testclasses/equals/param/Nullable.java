@@ -1,4 +1,4 @@
-package net.neoforged.vineflower.testclasses;
+package net.neoforged.vineflower.testclasses.equals.param;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

@@ -1,4 +1,4 @@
-package net.neoforged.vineflower.testclasses;
+package net.neoforged.vineflower.testclasses.equals;
 
 public class TestClass4 {
     @Override
