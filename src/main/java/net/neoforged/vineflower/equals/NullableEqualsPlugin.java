@@ -45,20 +45,20 @@ public class NullableEqualsPlugin implements Plugin {
 
             StructMethod method = context.getMethod();
             if (!method.getName().equals(EQUALS_NAME) || !method.getDescriptor().equals(EQUALS_DESC)) {
-                return true;
+                return false;
             }
 
             if (hasNullableTypeAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_TYPE_ANNOTATIONS)) {
-                return true;
+                return false;
             }
             if (hasNullableTypeAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_TYPE_ANNOTATIONS)) {
-                return true;
+                return false;
             }
             if (hasNullableParameterAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS)) {
-                return true;
+                return false;
             }
             if (hasNullableParameterAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS)) {
-                return true;
+                return false;
             }
 
             StructAnnotationParameterAttribute paramAnnotations = method.getAttribute(StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS);
