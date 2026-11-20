@@ -2,8 +2,10 @@ package net.neoforged.vineflower.equals;
 
 import net.neoforged.vineflower.testclasses.equals.TestClass3;
 import net.neoforged.vineflower.testclasses.equals.TestClass4;
-import net.neoforged.vineflower.testclasses.equals.param.TestClass5;
-import net.neoforged.vineflower.testclasses.equals.typeuse.TestClass6;
+import net.neoforged.vineflower.testclasses.equals.param.invisible.TestClass5;
+import net.neoforged.vineflower.testclasses.equals.param.visible.TestClass6;
+import net.neoforged.vineflower.testclasses.equals.typeuse.invisible.TestClass7;
+import net.neoforged.vineflower.testclasses.equals.typeuse.visible.TestClass8;
 import org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -84,10 +86,10 @@ class NullableEqualsTest {
     }
 
     @Test
-    void testWithPluginExistingParamNullableAnnotation() throws Exception {
+    void testWithPluginExistingParamRuntimeInvisibleNullableAnnotation() throws Exception {
         String javaSource = decompileTestClass(TestClass5.class);
         assertEquals("""
-                package net.neoforged.vineflower.testclasses.equals.param;
+                package net.neoforged.vineflower.testclasses.equals.param.invisible;
                 
                 public class TestClass5 {
                    @Override
@@ -99,12 +101,42 @@ class NullableEqualsTest {
     }
 
     @Test
-    void testWithPluginExistingTypeUseNullableAnnotation() throws Exception {
+    void testWithPluginExistingParamRuntimeVisibleNullableAnnotation() throws Exception {
         String javaSource = decompileTestClass(TestClass6.class);
         assertEquals("""
-                package net.neoforged.vineflower.testclasses.equals.typeuse;
+                package net.neoforged.vineflower.testclasses.equals.param.visible;
                 
                 public class TestClass6 {
+                   @Override
+                   public boolean equals(@Nullable Object o) {
+                      return false;
+                   }
+                }
+                """, javaSource);
+    }
+
+    @Test
+    void testWithPluginExistingTypeUseRuntimeInvisibleNullableAnnotation() throws Exception {
+        String javaSource = decompileTestClass(TestClass7.class);
+        assertEquals("""
+                package net.neoforged.vineflower.testclasses.equals.typeuse.invisible;
+                
+                public class TestClass7 {
+                   @Override
+                   public boolean equals(@Nullable Object o) {
+                      return false;
+                   }
+                }
+                """, javaSource);
+    }
+
+    @Test
+    void testWithPluginExistingTypeUseRuntimeVisibleNullableAnnotation() throws Exception {
+        String javaSource = decompileTestClass(TestClass8.class);
+        assertEquals("""
+                package net.neoforged.vineflower.testclasses.equals.typeuse.visible;
+                
+                public class TestClass8 {
                    @Override
                    public boolean equals(@Nullable Object o) {
                       return false;

@@ -1,4 +1,4 @@
-package net.neoforged.vineflower.testclasses.equals.typeuse;
+package net.neoforged.vineflower.testclasses.equals.param.visible;
 
 public class TestClass6 {
     @Override

@@ -1,4 +1,4 @@
-package net.neoforged.vineflower.testclasses.equals.typeuse;
+package net.neoforged.vineflower.testclasses.equals.typeuse.visible;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

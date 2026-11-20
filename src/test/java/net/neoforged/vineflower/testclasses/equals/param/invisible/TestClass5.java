@@ -1,4 +1,4 @@
-package net.neoforged.vineflower.testclasses.equals.param;
+package net.neoforged.vineflower.testclasses.equals.param.invisible;
 
 public class TestClass5 {
     @Override

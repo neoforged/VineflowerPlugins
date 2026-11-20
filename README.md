@@ -30,7 +30,8 @@ This plugin is enabled by default, but can be disabled using the `-add-onlyin=0`
 
 This plugin adds `@Nullable` annotations to the parameter of `Object#equals()` overrides to satisfy null-safety checks
 by static analysis tools when the containing class or its containing package is null-marked.
-If the parameter of such an override already specifies any runtime-visible annotation named `Nullable` then it is skipped.
+If the parameter of such an override already specifies any runtime-visible or runtime-invisible parameter or type-use
+annotation named `Nullable` then it is skipped.
 
 By default, this plugin will use the JSpecify `@Nullable` annotation, but this can be changed by passing the
 fully-qualified, slash-separated name of the annotation class to the `-nullable-equals-anno-type` command line option.

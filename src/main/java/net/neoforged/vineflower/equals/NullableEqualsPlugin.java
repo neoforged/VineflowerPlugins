@@ -12,10 +12,14 @@ import org.jetbrains.java.decompiler.struct.StructMethod;
 import org.jetbrains.java.decompiler.struct.attr.StructAnnotationParameterAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructTypeAnnotationAttribute;
+import org.jetbrains.java.decompiler.util.Key;
 import org.jetbrains.java.decompiler.util.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class NullableEqualsPlugin implements Plugin {
     private static final String EQUALS_NAME = "equals";
@@ -44,8 +48,16 @@ public class NullableEqualsPlugin implements Plugin {
                 return true;
             }
 
-            StructTypeAnnotationAttribute typeAnnotations = method.getAttribute(StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_TYPE_ANNOTATIONS);
-            if (hasNullableTypeAnnotation(typeAnnotations)) {
+            if (hasNullableTypeAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_TYPE_ANNOTATIONS)) {
+                return true;
+            }
+            if (hasNullableTypeAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_TYPE_ANNOTATIONS)) {
+                return true;
+            }
+            if (hasNullableParameterAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS)) {
+                return true;
+            }
+            if (hasNullableParameterAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS)) {
                 return true;
             }
 
@@ -66,30 +78,61 @@ public class NullableEqualsPlugin implements Plugin {
             } else {
                 firstParamAnnotations = annotations.getFirst();
             }
-            if (firstParamAnnotations.stream().noneMatch(NullableEqualsPlugin::isNullableAnnotation)) {
-                // Whether this needs to be added to parameter or type annotations depends on the configured annotation, but we have no guaranteed way to check
-                // that it is a type-use annotation (JSpecify and JetBrains are, JSR305 is not), so we go for the safe option and hope no plugin relies on this
-                String annoType = (String) DecompilerContext.getProperty(NullableEqualsOptions.NULLABLE_TYPE);
-                firstParamAnnotations.add(new AnnotationExprent(annoType, List.of(), List.of()));
-            }
+            // Whether this needs to be added to parameter or type annotations and runtime-visible or runtime-invisible annotations depends on the configured
+            // annotation, but we have no guaranteed way to check that it is a type-use annotation (JSpecify and JetBrains are, JSR305 is not), so we go for
+            // the safe option (runtime-visible parameter annotations) and hope no plugin relies on this being 100% correct
+            String annoType = (String) DecompilerContext.getProperty(NullableEqualsOptions.NULLABLE_TYPE);
+            firstParamAnnotations.add(new AnnotationExprent(annoType, List.of(), List.of()));
 
             return true;
         }));
     }
 
-    private static boolean hasNullableTypeAnnotation(StructTypeAnnotationAttribute annotationAttribute) {
-        if (annotationAttribute == null) {
-            return false;
-        }
-        List<TypeAnnotation> annotations = annotationAttribute.getAnnotations();
-        if (annotations == null || annotations.isEmpty()) {
-            return false;
-        }
-        return annotations.stream().anyMatch(anno -> anno.getTargetType() == TypeAnnotation.METHOD_PARAMETER && isNullableAnnotation(anno.getAnnotation()));
+    private static boolean hasNullableTypeAnnotation(StructMethod method, Key<StructTypeAnnotationAttribute> attribute) {
+        return hasNullableAnnotation(
+                method,
+                attribute,
+                StructTypeAnnotationAttribute::getAnnotations,
+                (ignored, anno) -> anno.getTargetType() == TypeAnnotation.METHOD_PARAMETER && anno.getIndex() == 0,
+                anno -> Stream.of(anno.getAnnotation())
+        );
     }
 
-    private static boolean isNullableAnnotation(AnnotationExprent annotation) {
-        return annotation.getClassName().endsWith(NULLABLE_SUFFIX);
+    private static boolean hasNullableParameterAnnotation(StructMethod method, Key<StructAnnotationParameterAttribute> attribute) {
+        return hasNullableAnnotation(
+                method,
+                attribute,
+                StructAnnotationParameterAttribute::getParamAnnotations,
+                (idx, ignored) -> idx == 0,
+                List::stream
+        );
+    }
+
+    private static <ATTR extends StructGeneralAttribute, ENTRY> boolean hasNullableAnnotation(
+            StructMethod method,
+            Key<ATTR> attributeKey,
+            Function<ATTR, List<ENTRY>> entryListGetter,
+            BiPredicate<Integer, ENTRY> entryFilter,
+            Function<ENTRY, Stream<AnnotationExprent>> exprentGetter
+    ) {
+        ATTR attribute = method.getAttribute(attributeKey);
+        if (attribute == null) {
+            return false;
+        }
+        List<ENTRY> entries = entryListGetter.apply(attribute);
+        if (entries == null || entries.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < entries.size(); i++) {
+            ENTRY entry = entries.get(i);
+            if (!entryFilter.test(i, entry)) {
+                continue;
+            }
+            if (exprentGetter.apply(entry).anyMatch(exprent -> exprent.getClassName().endsWith(NULLABLE_SUFFIX))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
