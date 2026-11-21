@@ -1,2 +1,3 @@
 net.neoforged.vineflower.unfinal.UnfinalParametersPlugin
 net.neoforged.vineflower.onlyin.OnlyInPlugin
+net.neoforged.vineflower.equals.NullableEqualsPlugin
