@@ -159,14 +159,16 @@ class NullableEqualsTest {
     }
 
     @Test
-    void testWithPluginRecordWithCustomEqualsMethodNotAnnotated() throws Exception {
+    void testWithPluginRecordWithCustomEqualsMethod() throws Exception {
         String javaSource = decompileTestClass(TestClass10.class);
         assertEquals("""
                 package net.neoforged.vineflower.testclasses.equals;
                 
+                import org.jspecify.annotations.Nullable;
+                
                 public record TestClass10() {
                    @Override
-                   public boolean equals(Object o) {
+                   public boolean equals(@Nullable Object o) {
                       return o instanceof TestClass10;
                    }
                 }

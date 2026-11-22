@@ -6,6 +6,7 @@ import org.jetbrains.java.decompiler.api.plugin.Plugin;
 import org.jetbrains.java.decompiler.api.plugin.PluginOptions;
 import org.jetbrains.java.decompiler.api.plugin.pass.NamedPass;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
+import org.jetbrains.java.decompiler.modules.decompiler.RecordHelper;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.AnnotationExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.TypeAnnotation;
 import org.jetbrains.java.decompiler.struct.StructMethod;
@@ -48,9 +49,14 @@ public class NullableEqualsPlugin implements Plugin {
                 return false;
             }
 
-            // Records are special, in that the JSpecify spec (v1.0.0) holds that the equals method of a record class
-            // will always take in a null as an argument (UNION_NULL)
-            if (context.getEnclosingClass().getRecordComponents() != null) {
+            // Skip adding the annotation in the case of a compiler-generated equals for records.
+            //
+            // Records are special because the equals method is filled in by the compiler if it is not explicitly defined in source.
+            // For compiler-generated equals, the JSpecify spec (v1.0.0) holds that it will always accept a null as an argument (UNION_NULL).
+            //
+            // Additionally, a bug exists where even if the sole use of the annotation is in the compiler-generated equals which is omitted
+            // by the printer, the import for the annotation is still added. This works around that bug.
+            if (context.getEnclosingClass().getRecordComponents() != null && RecordHelper.isHiddenRecordMethod(context.getEnclosingClass(), context.getMethod(), context.getRoot())) {
                 return false;
             }
 
