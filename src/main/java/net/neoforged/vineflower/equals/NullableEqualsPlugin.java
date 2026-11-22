@@ -48,6 +48,12 @@ public class NullableEqualsPlugin implements Plugin {
                 return false;
             }
 
+            // Records are special, in that the JSpecify spec (v1.0.0) holds that the equals method of a record class
+            // will always take in a null as an argument (UNION_NULL)
+            if (context.getEnclosingClass().getRecordComponents() != null) {
+                return false;
+            }
+
             if (hasNullableTypeAnnotation(method, StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_TYPE_ANNOTATIONS)) {
                 return false;
             }
