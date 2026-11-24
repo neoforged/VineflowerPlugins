@@ -1,7 +1,9 @@
 package net.neoforged.vineflower.equals;
 
+import net.neoforged.vineflower.testclasses.equals.TestClass10;
 import net.neoforged.vineflower.testclasses.equals.TestClass3;
 import net.neoforged.vineflower.testclasses.equals.TestClass4;
+import net.neoforged.vineflower.testclasses.equals.TestClass9;
 import net.neoforged.vineflower.testclasses.equals.param.invisible.TestClass5;
 import net.neoforged.vineflower.testclasses.equals.param.visible.TestClass6;
 import net.neoforged.vineflower.testclasses.equals.typeuse.invisible.TestClass7;
@@ -140,6 +142,34 @@ class NullableEqualsTest {
                    @Override
                    public boolean equals(@Nullable Object o) {
                       return false;
+                   }
+                }
+                """, javaSource);
+    }
+
+    @Test
+    void testWithPluginRecordWithoutImports() throws Exception {
+        String javaSource = decompileTestClass(TestClass9.class);
+        assertEquals("""
+                package net.neoforged.vineflower.testclasses.equals;
+                
+                public record TestClass9() {
+                }
+                """, javaSource);
+    }
+
+    @Test
+    void testWithPluginRecordWithCustomEqualsMethod() throws Exception {
+        String javaSource = decompileTestClass(TestClass10.class);
+        assertEquals("""
+                package net.neoforged.vineflower.testclasses.equals;
+                
+                import org.jspecify.annotations.Nullable;
+                
+                public record TestClass10() {
+                   @Override
+                   public boolean equals(@Nullable Object o) {
+                      return o instanceof TestClass10;
                    }
                 }
                 """, javaSource);
